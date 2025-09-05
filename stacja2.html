@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Stacja 2</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+<link rel="icon" href="bhl.jpg" type="image/jpeg">
+<link rel="shortcut icon" href="bhl.jpg" type="image/jpeg">
+<style>
+:root { --accent: #00ffcc; --bg: #050507; }
+html, body { height:100%; margin:0; background:var(--bg); color:var(--accent); font-family:'Share Tech Mono', monospace; }
+.matrix { position: fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; background:var(--bg); }
+canvas { display:block; width:100%; height:100%; }
+.container { position: relative; z-index:1; max-width:820px; margin:80px auto; background: rgba(0,0,0,0.85); border:2px solid var(--accent); border-radius:12px; padding:22px 28px; box-shadow:0 10px 30px rgba(0,0,0,0.6); text-align:center; }
+h2 { color:#ff0055; margin:0 0 12px; font-size:1.9rem; }
+p, code { font-size:1.05rem; font-weight:700; word-break: break-word; }
+code { display:block; margin:10px 0; font-size:1.15rem; line-height:1.4; }
+input { width:100%; padding:12px; margin-top:10px; box-sizing:border-box; background:#000; border:2px solid var(--accent); color:var(--accent); border-radius:8px; font-weight:700; font-size:1rem; }
+button { width:100%; margin-top:14px; padding:12px; background:none; border:2px solid var(--accent); color:var(--accent); border-radius:8px; font-weight:700; text-transform:uppercase; cursor:pointer; }
+button:hover { background:var(--accent); color:#000; }
+.decoded { margin-top:16px; text-align:left; background: rgba(0,255,204,0.05); border:1px solid var(--accent); padding:14px; border-radius:8px; font-size:1rem; font-weight:bold; box-shadow:0 0 10px rgba(0,255,204,0.3); }
+.error { margin-top:16px; color:#ff6b6b; font-weight:700; animation: blink 1s step-start infinite; }
+@keyframes blink { 50% { opacity:0; } }
+#lang-switch { position: fixed; top:15px; right:20px; z-index:10; }
+#lang-switch button { background: transparent; border: 2px solid var(--accent); color: var(--accent); padding: 6px 12px; border-radius: 8px; cursor:pointer; font-weight:700; transition: all 0.3s ease; }
+#lang-switch button:hover { background: var(--accent); color: #000; }
+@media (max-width:600px) { .container { margin:40px 12px; padding:14px; } h2 { font-size:1.4rem; } code, p { font-size:1rem; } }
+</style>
+</head>
+<body>
+
+<!-- Language switch -->
+<div id="lang-switch">
+  <button onclick="toggleLang()">PL / EN</button>
+</div>
+
+<div class="matrix">
+  <canvas id="matrixCanvas" aria-hidden="true"></canvas>
+</div>
+
+<div class="container" id="taskContainer">
+  <h2 id="stationTitle">&gt; STACJA [2/4] – SZYFR: MORSE'A</h2>
+  <p id="encodedLabel">Znaleziono zakodowany przekaz:</p>
+  <code>.... . .-.. .-.. --- / -.. .. -. --- ... .- ..- .-. ..- ...</code>
+  <p id="decodeLabel">Odszyfruj i wpisz treść:</p>
+  <input id="morseInput" type="text" placeholder="Twoja odpowiedź" autocomplete="off" />
+  <button id="checkBtn">SPRAWDŹ</button>
+</div>
+
+<div class="container" id="morseResult" style="display:none"></div>
+
+<script>
+(function(){
+
+  // ================= MATRIX / Dino animation =================
+  const canvas=document.getElementById('matrixCanvas');
+  const ctx=canvas.getContext('2d');
+  let W=window.innerWidth, H=window.innerHeight;
+  canvas.width=W; canvas.height=H;
+  const SYMBOLS=['🦖','🦕'], BASE_COUNT=50, SIZES=[16,20,24,28,32];
+  let items=[];
+
+  function rand(min,max){return min+Math.random()*(max-min);}
+  function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
+
+  class Dino{
+    constructor(){this.reset(true);}
+    reset(initial=false){
+      this.x=rand(0,W); 
+      this.y=initial?rand(-H,H):rand(-H*0.6,-20); 
+      this.size=pick(SIZES)*(0.85+Math.random()*0.7); 
+      this.symbol=pick(SYMBOLS); 
+      this.speed=(40/this.size)*(0.6+Math.random()*1.4); 
+      this.sway=rand(0.3,1.5); 
+      this.phase=Math.random()*Math.PI*2; 
+      this.alpha=rand(0.6,1);}
+    update(dt){
+      this.y+=this.speed*(dt/16); 
+      this.x+=Math.sin(this.y*0.02+this.phase)*this.sway*(dt/16)*0.4; 
+      if(this.y>H+this.size+20){this.reset(false);}
+    }
+    draw(ctx){
+      ctx.save(); 
+      ctx.globalAlpha=this.alpha; 
+      ctx.font=`${Math.round(this.size)}px serif`; 
+      ctx.textAlign='center'; 
+      ctx.textBaseline='top'; 
+      ctx.fillStyle='var(--accent)'; 
+      ctx.fillText(this.symbol,this.x,this.y); 
+      ctx.restore();
+    }
+  }
+
+  for(let i=0;i<BASE_COUNT;i++){items.push(new Dino());}
+  let last=performance.now();
+  function animate(now){
+    const dt=now-last; 
+    last=now; 
+    ctx.clearRect(0,0,W,H); 
+    items.forEach(it=>{it.update(dt); it.draw(ctx);}); 
+    requestAnimationFrame(animate);
+  }
+  requestAnimationFrame(animate);
+  window.addEventListener('resize',()=>{W=window.innerWidth; H=window.innerHeight; canvas.width=W; canvas.height=H;});
+
+  // ================= LANGUAGE SWITCH =================
+  let currentLang='PL';
+  const stationTitle=document.getElementById('stationTitle');
+  const encodedLabel=document.getElementById('encodedLabel');
+  const decodeLabel=document.getElementById('decodeLabel');
+  const checkBtn=document.getElementById('checkBtn');
+  const morseInput=document.getElementById('morseInput');
+
+  window.toggleLang=function(){
+    if(currentLang==='PL'){
+      stationTitle.innerHTML="&gt; STATION [2/4] – MORSE CIPHER";
+      encodedLabel.textContent="Encoded message found:";
+      decodeLabel.textContent="Decode and enter the message:";
+      checkBtn.textContent="CHECK";
+      morseInput.placeholder="Your answer";
+      currentLang='EN';
+    } else {
+      stationTitle.innerHTML="&gt; STACJA [2/4] – SZYFR: MORSE'A";
+      encodedLabel.textContent="Znaleziono zakodowany przekaz:";
+      decodeLabel.textContent="Odszyfruj i wpisz treść:";
+      checkBtn.textContent="SPRAWDŹ";
+      morseInput.placeholder="Twoja odpowiedź";
+      currentLang='PL';
+    }
+  }
+
+  // ================= STATION LOGIC =================
+  const input=morseInput, result=document.getElementById('morseResult'), task=document.getElementById('taskContainer');
+  checkBtn.addEventListener('click',checkMorse);
+
+  function normalizeAnswer(s){
+    return s.trim().toLowerCase().replace(/[ąćęłńóśżź]/g,c=>({'ą':'a','ć':'c','ę':'e','ł':'l','ń':'n','ó':'o','ś':'s','ż':'z','ź':'z'}[c]||c)).replace(/\s+/g,' ');
+  }
+
+  function checkMorse(){
+    const val=normalizeAnswer(input.value);
+    const encodedPassword='aGVsbG8gZGlub3NhdXJ1cw==';
+    const correctAnswer=atob(encodedPassword);
+    task.style.display='none';
+    result.style.display='block';
+    if(val===correctAnswer){
+      if(currentLang==='PL'){
+        result.innerHTML=`<div class="decoded">
+          <p>&gt; Odszyfrowano wiadomość</p>
+          <p>&gt; 🔓 Kod fragmentu: <strong>BHL</strong></p>
+          <p><em>„W Warszawie stoi stara Stodoła,<br />
+          Gdzie muzyka w serca gra i woła.<br />
+          Wśród świateł i rytmów każdy się bawi,<br />
+          Zgadnij, gdzie to miejsce, co cię rozpali?”<br /><br />
+          Kolejna stacja: 6266+J3, Warszawa</em></p>
+        </div>`;
+      } else {
+        result.innerHTML=`<div class="decoded">
+          <p>&gt; Message decrypted</p>
+          <p>&gt; 🔓 Fragment code: <strong>BHL</strong></p>
+          <p><em>“In Warsaw stands an old Barn,<br />
+          Where music plays and hearts respond.<br />
+          Among lights and rhythms everyone dances,<br />
+          Guess the place that ignites your spark?”<br /><br />
+          Next station: 6266+J3, Warsaw</em></p>
+        </div>`;
+      }
+    } else {
+      if(currentLang==='PL'){
+        result.innerHTML=`<div class="error">
+          ███ SYSTEM ERROR ██<br />
+          Błąd dekodowania...<br />
+          <button onclick="location.reload()">&gt; RESETUJ STACJĘ</button>
+        </div>`;
+      } else {
+        result.innerHTML=`<div class="error">
+          ███ SYSTEM ERROR ██<br />
+          Decoding error...<br />
+          <button onclick="location.reload()">&gt; RESET STATION</button>
+        </div>`;
+      }
+    }
+  }
+
+})();
+</script>
+</body>
+</html>

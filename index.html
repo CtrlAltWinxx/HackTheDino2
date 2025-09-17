@@ -145,7 +145,7 @@
       font-weight: bold;
     }
 
-    /* Language switch button */
+    
     #lang-switch {
       position: fixed;
       top: 15px;
@@ -168,13 +168,13 @@
       color: #000;
     }
 
-    /* Responsive */
+    
     @media (max-width: 768px) { main { padding: 28px 22px; } h1 { font-size: 2.2rem; } p { font-size: 1rem; } button { font-size: 1rem; padding: 10px 25px; } }
     @media (max-width: 480px) { main { padding: 22px 18px; } h1 { font-size: 1.7rem; letter-spacing: 1px; } p { font-size: 0.95rem; } button { font-size: 0.95rem; padding: 8px 22px; } .digit { display: none; } }
   </style>
 </head>
 <body>
-  <!-- 🔘 Language switch -->
+  
   <div id="lang-switch">
     <button onclick="toggleLang()" aria-label="Change language">PL / EN</button>
   </div>
@@ -193,7 +193,7 @@
   </main>
 
   <script>
-    // 🌐 Language toggle
+    
     let currentLang = "PL";
 
     function toggleLang() {
@@ -224,7 +224,7 @@
       }
     }
 
-    // 🔀 Navigation
+    
     function goTo(page) {
       const btn = document.querySelector('main button');
       btn.disabled = true;
@@ -232,7 +232,7 @@
       setTimeout(() => { window.location.href = page; }, 700);
     }
 
-    // 🔢 Floating digits
+    
     const digitsCount = window.innerWidth < 480 ? 0 : 30;
     const digits = [];
 
@@ -265,3 +265,4 @@
   </script>
 </body>
 </html>
+
